@@ -4,7 +4,6 @@ import path from "node:path";
 
 import { AppError, type TranscriptResult, type TranscriptionProvider } from "../types";
 import { runCommand } from "./commands";
-import { cleanupTranscriptWithLocalLlm, getLocalLlm } from "./localLlms";
 import { normalizeTranscript } from "./markdown";
 
 export async function transcribeAudio(
@@ -13,20 +12,6 @@ export async function transcribeAudio(
   jobDir: string,
   language?: string
 ): Promise<{ result: TranscriptResult; providerUsed: string }> {
-  if (provider.startsWith("local-llm:")) {
-    const llm = await getLocalLlm(provider.replace("local-llm:", ""));
-    const whisperResult = await transcribeWithLocalWhisper(audioPath, jobDir, language);
-    const cleanedText = await cleanupTranscriptWithLocalLlm(llm, whisperResult.text);
-
-    return {
-      result: {
-        text: normalizeTranscript(cleanedText),
-        language: whisperResult.language
-      },
-      providerUsed: `${llm.kind}:${llm.name}:${llm.model}`
-    };
-  }
-
   if (provider === "local-whisper") {
     return {
       result: await transcribeWithLocalWhisper(audioPath, jobDir, language),
@@ -41,44 +26,7 @@ export async function transcribeAudio(
     };
   }
 
-  return {
-    result: await transcribeWithLMStudio(audioPath, language),
-    providerUsed: `lm-studio:${process.env.LM_STUDIO_TRANSCRIPTION_MODEL || "default"}`
-  };
-}
-
-export async function maybeCleanupWithLMStudio(transcript: string): Promise<string> {
-  const baseUrl = process.env.LM_STUDIO_BASE_URL || "http://127.0.0.1:1234";
-  const model = process.env.LM_STUDIO_CLEANUP_MODEL || process.env.LM_STUDIO_TRANSCRIPTION_MODEL;
-
-  try {
-    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/v1/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "system",
-            content:
-              "Clean up this speech transcript for readability. Preserve meaning, do not summarize, and return only markdown-safe transcript text."
-          },
-          { role: "user", content: transcript }
-        ],
-        temperature: 0.1
-      }),
-      signal: AbortSignal.timeout(60_000)
-    });
-
-    if (!response.ok) {
-      return transcript;
-    }
-
-    const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    return normalizeTranscript(data.choices?.[0]?.message?.content ?? transcript);
-  } catch {
-    return transcript;
-  }
+  throw new AppError("Unknown transcription provider.", 400, "UNKNOWN_PROVIDER");
 }
 
 async function transcribeWithLocalWhisper(
@@ -145,43 +93,6 @@ async function transcribeWithOpenAI(audioPath: string, language?: string): Promi
       "OpenAI transcription failed.",
       response.status,
       "OPENAI_TRANSCRIPTION_FAILED",
-      await response.text()
-    );
-  }
-
-  const data = (await response.json()) as { text?: string; language?: string };
-  return {
-    text: normalizeTranscript(data.text ?? ""),
-    language: data.language
-  };
-}
-
-async function transcribeWithLMStudio(audioPath: string, language?: string): Promise<TranscriptResult> {
-  const baseUrl = process.env.LM_STUDIO_BASE_URL || "http://127.0.0.1:1234";
-  const model = process.env.LM_STUDIO_TRANSCRIPTION_MODEL;
-  const form = await createAudioForm(audioPath, model || "whisper-1", language);
-
-  let response: Response;
-  try {
-    response = await fetch(`${baseUrl.replace(/\/$/, "")}/v1/audio/transcriptions`, {
-      method: "POST",
-      body: form,
-      signal: AbortSignal.timeout(60_000)
-    });
-  } catch (error) {
-    throw new AppError(
-      "LM Studio transcription endpoint unavailable. Use local-whisper, or start an OpenAI-compatible audio endpoint in LM Studio.",
-      422,
-      "LM_STUDIO_UNAVAILABLE",
-      error instanceof Error ? error.message : undefined
-    );
-  }
-
-  if (!response.ok) {
-    throw new AppError(
-      "LM Studio transcription endpoint unavailable. Use local-whisper, or start an OpenAI-compatible audio endpoint in LM Studio.",
-      422,
-      "LM_STUDIO_UNAVAILABLE",
       await response.text()
     );
   }

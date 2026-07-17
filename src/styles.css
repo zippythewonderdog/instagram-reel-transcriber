@@ -136,25 +136,6 @@ h3 {
   border-color: #28666e;
 }
 
-.toggle {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid #dad7cd;
-  border-radius: 6px;
-  background: #fbfaf7;
-  cursor: pointer;
-}
-
-.toggle span {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 700;
-}
-
 .primary-action {
   grid-column: 1 / -1;
   display: inline-flex;
@@ -210,97 +191,6 @@ h3 {
   color: #2d5141;
   background: #f0f8f4;
   font-weight: 700;
-}
-
-.llm-panel {
-  margin-top: 22px;
-  padding-top: 20px;
-  border-top: 1px solid #dad7cd;
-}
-
-.panel-heading {
-  margin-bottom: 14px;
-}
-
-.panel-heading h2 {
-  font-size: 18px;
-}
-
-.panel-heading p {
-  color: #686f7a;
-  margin-top: 6px;
-  line-height: 1.45;
-}
-
-.llm-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.llm-actions,
-.llm-row-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.llm-actions {
-  grid-column: 1 / -1;
-}
-
-.llm-actions button,
-.llm-row-actions button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 38px;
-  border: 1px solid #c6c4bb;
-  border-radius: 6px;
-  background: #fbfaf7;
-  color: #1c1f24;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.llm-actions button {
-  flex: 1;
-}
-
-.llm-actions button:disabled,
-.llm-row-actions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.llm-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.llm-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 11px;
-  border: 1px solid #dad7cd;
-  border-radius: 6px;
-  background: #fbfaf7;
-}
-
-.llm-row strong,
-.llm-row span {
-  display: block;
-}
-
-.llm-row span {
-  max-width: 260px;
-  margin-top: 3px;
-  overflow-wrap: anywhere;
-  color: #686f7a;
-  font-size: 13px;
 }
 
 .output {
@@ -409,8 +299,7 @@ h3 {
 }
 
 @media (max-width: 560px) {
-  .control-panel,
-  .llm-form {
+  .control-panel {
     grid-template-columns: 1fr;
   }
 

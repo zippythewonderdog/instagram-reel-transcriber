@@ -1,36 +1,9 @@
-export type BuiltInTranscriptionProvider = "local-whisper" | "openai";
-export type TranscriptionProvider = BuiltInTranscriptionProvider | "lm-studio-compatible" | `local-llm:${string}`;
-export type CleanupProvider = "none" | "lm-studio";
+export type TranscriptionProvider = "local-whisper" | "openai";
 
 export interface TranscribeRequest {
   url: string;
   provider: TranscriptionProvider;
-  localLlmId?: string;
   language?: string;
-  cleanupProvider?: CleanupProvider;
-}
-
-export type LocalLlmKind = "lm-studio";
-
-export interface LocalLlmConfig {
-  id: string;
-  name: string;
-  kind: LocalLlmKind;
-  baseUrl: string;
-  model: string;
-}
-
-export interface CreateLocalLlmRequest {
-  name: string;
-  kind: LocalLlmKind;
-  baseUrl: string;
-  model: string;
-}
-
-export interface LocalLlmTestResult {
-  ok: boolean;
-  message: string;
-  details?: string;
 }
 
 export interface TranscriptMetadata {

@@ -5,7 +5,6 @@ dist-server
 .cache
 .npm-cache
 .env
-data/local-llms.json
 data/transcript-history.json
 tmp
 *.log

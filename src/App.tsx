@@ -1,22 +1,13 @@
-import { Check, Clipboard, Download, FileText, Loader2, Mic, PlugZap, Sparkles, Trash2 } from "lucide-react";
+import { Check, Clipboard, Download, FileText, Loader2, Mic, Trash2 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
-  createLocalLlm,
-  deleteLocalLlm,
   deleteTranscriptHistoryItem,
   getTranscriptHistoryItem,
-  listLocalLlms,
   listTranscriptHistory,
-  requestTranscript,
-  testLocalLlm,
-  testSavedLocalLlm
+  requestTranscript
 } from "./api";
 import type {
-  CleanupProvider,
-  LocalLlmConfig,
-  LocalLlmInput,
-  LocalLlmTestResult,
   TranscriptHistorySummary,
   TranscribeResponse,
   TranscriptionProvider
@@ -32,18 +23,7 @@ const progressMessages = [
 export function App() {
   const [url, setUrl] = useState("");
   const [provider, setProvider] = useState<TranscriptionProvider>("local-whisper");
-  const [cleanupProvider, setCleanupProvider] = useState<CleanupProvider>("none");
   const [language, setLanguage] = useState("");
-  const [localLlms, setLocalLlms] = useState<LocalLlmConfig[]>([]);
-  const [llmDraft, setLlmDraft] = useState<LocalLlmInput>({
-    name: "",
-    kind: "lm-studio",
-    baseUrl: "http://127.0.0.1:1234",
-    model: ""
-  });
-  const [llmStatus, setLlmStatus] = useState("");
-  const [isTestingLlm, setIsTestingLlm] = useState(false);
-  const [testingSavedId, setTestingSavedId] = useState("");
   const [historyItems, setHistoryItems] = useState<TranscriptHistorySummary[]>([]);
   const [historyStatus, setHistoryStatus] = useState("");
   const [selectedHistoryId, setSelectedHistoryId] = useState("");
@@ -53,20 +33,12 @@ export function App() {
   const [copied, setCopied] = useState(false);
 
   const canSubmit = useMemo(() => url.trim().length > 0 && !isLoading, [url, isLoading]);
-  const canSaveLlm = llmDraft.name.trim() && llmDraft.baseUrl.trim() && llmDraft.model.trim();
 
   useEffect(() => {
-    refreshLocalLlms().catch((caught) => {
-      setLlmStatus(caught instanceof Error ? caught.message : "Could not load local LLMs.");
-    });
     refreshHistory().catch((caught) => {
       setHistoryStatus(caught instanceof Error ? caught.message : "Could not load transcript history.");
     });
   }, []);
-
-  async function refreshLocalLlms() {
-    setLocalLlms(await listLocalLlms());
-  }
 
   async function refreshHistory() {
     setHistoryItems(await listTranscriptHistory());
@@ -83,8 +55,7 @@ export function App() {
       const transcript = await requestTranscript({
         url,
         provider,
-        language: language.trim() || undefined,
-        cleanupProvider
+        language: language.trim() || undefined
       });
       setResult(transcript);
       setSelectedHistoryId(transcript.historyId ?? "");
@@ -93,67 +64,6 @@ export function App() {
       setError(caught instanceof Error ? caught.message : "Transcription failed.");
     } finally {
       setIsLoading(false);
-    }
-  }
-
-  async function onSaveLocalLlm(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setLlmStatus("");
-
-    try {
-      const created = await createLocalLlm(llmDraft);
-      await refreshLocalLlms();
-      setProvider(`local-llm:${created.id}`);
-      setLlmDraft({
-        name: "",
-        kind: "lm-studio",
-        baseUrl: llmDraft.baseUrl,
-        model: ""
-      });
-      setLlmStatus(`Saved ${created.name}.`);
-    } catch (caught) {
-      setLlmStatus(caught instanceof Error ? caught.message : "Could not save local LLM.");
-    }
-  }
-
-  async function onTestDraftLlm() {
-    setIsTestingLlm(true);
-    setLlmStatus("");
-
-    try {
-      setLlmStatus(formatTestResult(await testLocalLlm(llmDraft)));
-    } catch (caught) {
-      setLlmStatus(caught instanceof Error ? caught.message : "Could not test local LLM.");
-    } finally {
-      setIsTestingLlm(false);
-    }
-  }
-
-  async function onTestSavedLlm(llm: LocalLlmConfig) {
-    setTestingSavedId(llm.id);
-    setLlmStatus("");
-
-    try {
-      setLlmStatus(formatTestResult(await testSavedLocalLlm(llm.id)));
-    } catch (caught) {
-      setLlmStatus(caught instanceof Error ? caught.message : "Could not test local LLM.");
-    } finally {
-      setTestingSavedId("");
-    }
-  }
-
-  async function onDeleteLocalLlm(llm: LocalLlmConfig) {
-    setLlmStatus("");
-
-    try {
-      await deleteLocalLlm(llm.id);
-      await refreshLocalLlms();
-      if (provider === `local-llm:${llm.id}`) {
-        setProvider("local-whisper");
-      }
-      setLlmStatus(`Deleted ${llm.name}.`);
-    } catch (caught) {
-      setLlmStatus(caught instanceof Error ? caught.message : "Could not delete local LLM.");
     }
   }
 
@@ -244,16 +154,6 @@ export function App() {
             >
               <option value="local-whisper">Local Whisper</option>
               <option value="openai">OpenAI</option>
-              <option value="lm-studio-compatible">LM Studio audio endpoint</option>
-              {localLlms.length ? (
-                <optgroup label="Local LLMs">
-                  {localLlms.map((llm) => (
-                    <option value={`local-llm:${llm.id}`} key={llm.id}>
-                      {llm.name} ({llm.model})
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null}
             </select>
           </label>
 
@@ -267,91 +167,11 @@ export function App() {
             />
           </label>
 
-          <label className="toggle">
-            <input
-              type="checkbox"
-              checked={cleanupProvider === "lm-studio"}
-              onChange={(event) => setCleanupProvider(event.target.checked ? "lm-studio" : "none")}
-              disabled={isLoading}
-            />
-            <span>
-              <Sparkles size={18} />
-              Clean transcript with LM Studio
-            </span>
-          </label>
-
           <button className="primary-action" type="submit" disabled={!canSubmit}>
             {isLoading ? <Loader2 className="spin" size={20} /> : <FileText size={20} />}
             Generate transcript
           </button>
         </form>
-
-        <section className="llm-panel">
-          <div className="panel-heading">
-            <h2>Local LLMs</h2>
-            <p>Add LM Studio models for transcript cleanup after local Whisper transcription.</p>
-          </div>
-
-          <form className="llm-form" onSubmit={onSaveLocalLlm}>
-            <label className="field">
-              <span>Name</span>
-              <input
-                value={llmDraft.name}
-                onChange={(event) => setLlmDraft({ ...llmDraft, name: event.target.value })}
-                placeholder="Mistral cleanup"
-              />
-            </label>
-            <label className="field">
-              <span>Base URL</span>
-              <input
-                value={llmDraft.baseUrl}
-                onChange={(event) => setLlmDraft({ ...llmDraft, baseUrl: event.target.value })}
-                placeholder="http://127.0.0.1:1234"
-              />
-            </label>
-            <label className="field field-wide">
-              <span>Model</span>
-              <input
-                value={llmDraft.model}
-                onChange={(event) => setLlmDraft({ ...llmDraft, model: event.target.value })}
-                placeholder="loaded-model-id-from-lm-studio"
-              />
-            </label>
-            <div className="llm-actions">
-              <button type="button" onClick={onTestDraftLlm} disabled={!canSaveLlm || isTestingLlm}>
-                {isTestingLlm ? <Loader2 className="spin" size={18} /> : <PlugZap size={18} />}
-                Test
-              </button>
-              <button type="submit" disabled={!canSaveLlm}>
-                <Check size={18} />
-                Save
-              </button>
-            </div>
-          </form>
-
-          {localLlms.length ? (
-            <div className="llm-list">
-              {localLlms.map((llm) => (
-                <div className="llm-row" key={llm.id}>
-                  <div>
-                    <strong>{llm.name}</strong>
-                    <span>{llm.model}</span>
-                  </div>
-                  <div className="llm-row-actions">
-                    <button type="button" onClick={() => onTestSavedLlm(llm)} disabled={testingSavedId === llm.id}>
-                      {testingSavedId === llm.id ? <Loader2 className="spin" size={18} /> : <PlugZap size={18} />}
-                    </button>
-                    <button type="button" onClick={() => onDeleteLocalLlm(llm)}>
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {llmStatus ? <div className="status-panel">{llmStatus}</div> : null}
-        </section>
 
         {isLoading ? (
           <div className="progress-list" aria-live="polite">
@@ -425,10 +245,6 @@ export function App() {
       </section>
     </main>
   );
-}
-
-function formatTestResult(result: LocalLlmTestResult): string {
-  return result.details ? `${result.message} ${result.details}` : result.message;
 }
 
 function formatHistoryLabel(item: TranscriptHistorySummary): string {

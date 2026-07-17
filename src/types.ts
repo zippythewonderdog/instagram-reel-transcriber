@@ -1,26 +1,4 @@
-export type TranscriptionProvider = "local-whisper" | "openai" | "lm-studio-compatible" | `local-llm:${string}`;
-export type CleanupProvider = "none" | "lm-studio";
-
-export interface LocalLlmConfig {
-  id: string;
-  name: string;
-  kind: "lm-studio";
-  baseUrl: string;
-  model: string;
-}
-
-export interface LocalLlmInput {
-  name: string;
-  kind: "lm-studio";
-  baseUrl: string;
-  model: string;
-}
-
-export interface LocalLlmTestResult {
-  ok: boolean;
-  message: string;
-  details?: string;
-}
+export type TranscriptionProvider = "local-whisper" | "openai";
 
 export interface TranscribeResponse {
   markdown: string;
