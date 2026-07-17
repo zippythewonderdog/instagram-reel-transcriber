@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-server
+.vite
+.cache
+.npm-cache
+.env
+data/local-llms.json
+data/transcript-history.json
+tmp
+*.log
+._*
