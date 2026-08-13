@@ -8,7 +8,8 @@ import {
   deleteTranscriptHistoryItem,
   getTranscriptHistoryItem,
   listTranscriptHistory,
-  saveTranscriptHistory
+  saveTranscriptHistory,
+  updateTranscriptHistoryItem
 } from "../server/lib/history";
 
 let tempDir = "";
@@ -47,6 +48,13 @@ describe("transcript history", () => {
     ]);
     await expect(getTranscriptHistoryItem(saved.id)).resolves.toMatchObject({
       rawTranscript: "Hello"
+    });
+
+    await expect(
+      updateTranscriptHistoryItem(saved.id, "# Transcript\n\n## Transcript\n\nEdited text")
+    ).resolves.toMatchObject({
+      markdown: "# Transcript\n\n## Transcript\n\nEdited text",
+      rawTranscript: "Edited text"
     });
 
     await deleteTranscriptHistoryItem(saved.id);

@@ -9,7 +9,8 @@ import {
   deleteTranscriptHistoryItem,
   getTranscriptHistoryItem,
   listTranscriptHistory,
-  saveTranscriptHistory
+  saveTranscriptHistory,
+  updateTranscriptHistoryItem
 } from "./lib/history";
 
 const PROVIDERS = new Set(["local-whisper", "openai"]);
@@ -42,6 +43,18 @@ export function createApp() {
     try {
       await deleteTranscriptHistoryItem(req.params.id);
       res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.put("/api/history/:id", async (req, res, next) => {
+    try {
+      const markdown = typeof req.body?.markdown === "string" ? req.body.markdown.trim() : "";
+      if (!markdown) {
+        throw new AppError("Markdown transcript cannot be empty.", 400, "EMPTY_MARKDOWN");
+      }
+      res.json({ item: await updateTranscriptHistoryItem(req.params.id, markdown) });
     } catch (error) {
       next(error);
     }

@@ -1,17 +1,19 @@
-import { Check, Clipboard, Download, FileText, Loader2, Mic, Trash2 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
   deleteTranscriptHistoryItem,
   getTranscriptHistoryItem,
   listTranscriptHistory,
-  requestTranscript
+  requestTranscript,
+  updateTranscriptHistoryItem
 } from "./api";
 import type {
   TranscriptHistorySummary,
   TranscribeResponse,
   TranscriptionProvider
 } from "./types";
+import { Check, Clipboard, Download, FileText, Loader2, Mic, Trash2 } from "./icons";
+import { hasInstagramShareIdentifier, removeInstagramShareIdentifier } from "./url";
 
 const progressMessages = [
   "Fetching public Instagram media",
@@ -31,6 +33,9 @@ export function App() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const hasShareIdentifier = useMemo(() => hasInstagramShareIdentifier(url), [url]);
 
   const canSubmit = useMemo(() => url.trim().length > 0 && !isLoading, [url, isLoading]);
 
@@ -59,6 +64,7 @@ export function App() {
       });
       setResult(transcript);
       setSelectedHistoryId(transcript.historyId ?? "");
+      setIsDirty(false);
       await refreshHistory();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Transcription failed.");
@@ -78,9 +84,10 @@ export function App() {
 
     try {
       const item = await getTranscriptHistoryItem(id);
-      setResult(item);
+      setResult({ ...item, historyId: item.id });
       setUrl(item.metadata.sourceUrl);
       setCopied(false);
+      setIsDirty(false);
     } catch (caught) {
       setHistoryStatus(caught instanceof Error ? caught.message : "Could not load history item.");
     }
@@ -97,6 +104,7 @@ export function App() {
       setSelectedHistoryId("");
       setResult(null);
       setCopied(false);
+      setIsDirty(false);
       setHistoryStatus("Deleted transcript from history.");
     } catch (caught) {
       setHistoryStatus(caught instanceof Error ? caught.message : "Could not delete history item.");
@@ -120,6 +128,25 @@ export function App() {
     URL.revokeObjectURL(link.href);
   }
 
+  async function saveMarkdown() {
+    if (!result?.historyId || !isDirty || isSaving) return;
+
+    setHistoryStatus("");
+    setIsSaving(true);
+
+    try {
+      const item = await updateTranscriptHistoryItem(result.historyId, result.markdown);
+      setResult({ ...item, historyId: item.id });
+      setIsDirty(false);
+      await refreshHistory();
+      setHistoryStatus("Saved transcript changes.");
+    } catch (caught) {
+      setHistoryStatus(caught instanceof Error ? caught.message : "Could not save transcript changes.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <main className="app-shell">
       <section className="tool">
@@ -135,7 +162,19 @@ export function App() {
 
         <form className="control-panel" onSubmit={onSubmit}>
           <label className="field field-wide">
-            <span>Instagram URL</span>
+            <div className="field-heading">
+              <span>Instagram URL</span>
+              {hasShareIdentifier ? (
+                <button
+                  className="text-action"
+                  type="button"
+                  onClick={() => setUrl(removeInstagramShareIdentifier(url))}
+                  disabled={isLoading}
+                >
+                  Remove share identifier
+                </button>
+              ) : null}
+            </div>
             <input
               type="url"
               value={url}
@@ -202,6 +241,10 @@ export function App() {
               <Download size={18} />
               Download
             </button>
+            <button type="button" onClick={saveMarkdown} disabled={!result?.historyId || !isDirty || isSaving}>
+              {isSaving ? <Loader2 className="spin" size={18} /> : <Check size={18} />}
+              {isSaving ? "Saving" : "Save"}
+            </button>
           </div>
         </div>
 
@@ -228,7 +271,11 @@ export function App() {
         <textarea
           className="markdown-box"
           value={result?.markdown ?? ""}
-          readOnly
+          onChange={(event) => {
+            if (!result) return;
+            setResult({ ...result, markdown: event.target.value });
+            setIsDirty(true);
+          }}
           placeholder="# Instagram Reel Transcript&#10;&#10;Your Markdown transcript will land here."
         />
 
@@ -236,7 +283,7 @@ export function App() {
           {result ? (
             <>
               <h3>Transcript Preview</h3>
-              <p>{result.rawTranscript}</p>
+              <p>{extractTranscriptText(result.markdown)}</p>
             </>
           ) : (
             <p className="empty">Waiting for audio. Very patient. Slightly dramatic.</p>
@@ -250,4 +297,10 @@ export function App() {
 function formatHistoryLabel(item: TranscriptHistorySummary): string {
   const title = item.title || new URL(item.sourceUrl).pathname.split("/").filter(Boolean).join("/");
   return `${title} - ${new Date(item.createdAt).toLocaleString()}`;
+}
+
+function extractTranscriptText(markdown: string): string {
+  const marker = "## Transcript";
+  const markerIndex = markdown.indexOf(marker);
+  return markerIndex === -1 ? markdown.trim() : markdown.slice(markerIndex + marker.length).trim();
 }

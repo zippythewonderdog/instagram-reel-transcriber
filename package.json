@@ -4,21 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
+    "dev": "node scripts/dev.mjs",
     "dev:server": "tsx watch server/index.ts",
     "dev:client": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
     "start": "NODE_ENV=production tsx server/index.ts",
     "test": "vitest run",
     "lint": "tsc --noEmit",
-    "clean": "rm -rf dist .npm-cache && find . -name '._*' -delete",
+    "clean": "rm -rf dist .npm-cache && find . -name '._*' ! -path './.git/*' -delete",
     "clean:models": "rm -rf .cache/whisper"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "^5.1.1",
-    "concurrently": "^9.2.1",
     "express": "^5.2.1",
-    "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "tsx": "^4.21.0",

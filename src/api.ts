@@ -47,6 +47,16 @@ export async function deleteTranscriptHistoryItem(id: string): Promise<void> {
   }
 }
 
+export async function updateTranscriptHistoryItem(id: string, markdown: string): Promise<TranscriptHistoryItem> {
+  const response = await fetch(`/api/history/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ markdown })
+  });
+  const data = await readJson(response);
+  return data.item as TranscriptHistoryItem;
+}
+
 async function readJson(response: Response): Promise<any> {
   const data = await response.json().catch(() => ({}));
 

@@ -62,6 +62,26 @@ export async function deleteTranscriptHistoryItem(id: string): Promise<void> {
   await writeStore({ items: nextItems });
 }
 
+export async function updateTranscriptHistoryItem(id: string, markdown: string): Promise<TranscriptHistoryItem> {
+  const store = await readStore();
+  const item = store.items.find((candidate) => candidate.id === id);
+
+  if (!item) {
+    throw new AppError("Transcript history item not found.", 404, "TRANSCRIPT_HISTORY_NOT_FOUND");
+  }
+
+  item.markdown = markdown;
+  item.rawTranscript = extractTranscriptText(markdown);
+  await writeStore(store);
+  return item;
+}
+
+function extractTranscriptText(markdown: string): string {
+  const marker = "## Transcript";
+  const markerIndex = markdown.indexOf(marker);
+  return markerIndex === -1 ? markdown.trim() : markdown.slice(markerIndex + marker.length).trim();
+}
+
 async function readStore(): Promise<HistoryStore> {
   try {
     const text = await readFile(getStorePath(), "utf8");
